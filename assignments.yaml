@@ -1,0 +1,61 @@
+- notebook: linear_classification
+  testfile: test_linear_classification
+  deadline: 2024-10-15
+  tests:
+    - name: TestPreprocess
+      points: 1
+      params:
+        preprocess_fn: preprocess
+    - name: TestBatchLoader
+      points: 3
+    - name: TestInit
+      points: 1
+    - name: TestTrainStepSoftmax
+      points: 5
+    - name: TestValStepSoftmax
+      points: 2
+    - name: TestAccuracy
+      points: 1
+    - name: TestTrainEpoch
+      points: 1
+    - name: TestValidate
+      points: 1
+    - name: TestSoftmaxValAccuracy
+      points: 5
+      params:
+        preprocess_fn: preprocess
+    - name: TestTrainStepSVM
+      points: 5
+      required: false
+    - name: TestValStepSVM
+      points: 2
+      required: false
+    - name: TestSVMValAccuracy
+      points: 5
+      required: false
+      params:
+        preprocess_fn: preprocess
+
+- notebook: two_layer_perceptron
+  testfile: test_two_layer_perceptron
+  deadline: 2024-10-22
+  tests:
+    - name: TestPreprocess
+      points: 1
+      params:
+        preprocess_fn: preprocess
+    - name: TestInit
+      points: 1
+    - name: TestTrainStep
+      points: 5
+    - name: TestValStep
+      points: 2
+    - name: TestValAccuracy45
+      points: 5
+      params:
+        preprocess_fn: preprocess
+    - name: TestValAccuracy50
+      points: 3
+      required: false
+      params:
+        preprocess_fn: preprocess
