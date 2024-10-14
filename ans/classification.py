@@ -9,10 +9,9 @@ class LinearSoftmaxModel:
 
     def __init__(self, in_size: int, out_size: int, weight_scale: float = 1e-3) -> None:
         ########################################
-        # TODO: implement
 
-        self.weight = ...
-        self.bias = ...
+        self.weight = torch.randn(in_size, out_size) * weight_scale
+        self.bias = torch.randn(out_size) * weight_scale
 
         ########################################
 
@@ -32,10 +31,28 @@ class LinearSoftmaxModel:
             logits: classification scores predicted on the batch; shape (N, K)
         """
         ########################################
-        # TODO: implement
 
-        raise NotImplementedError
+        N = inputs.shape[0]
 
+        logits = inputs @ self.weight + self.bias  # (N, K)
+
+        # Compute softmax
+        exp_logits = torch.exp(logits)
+        softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
+
+        # Compute loss using cross-entropy
+        log_probs = -torch.log(softmax[torch.arange(N), targets])  # Shape: (N,)
+        loss = log_probs.mean().item()  # Total loss for a batch
+
+        # Compute gradients
+        softmax[torch.arange(N), targets] -= 1  # Gradient for correct classes
+        grad_weight = (softmax.T @ inputs / N).T  # (K, D)
+        grad_bias = softmax.mean(dim=0)  # (K,)
+
+        # Update parameters
+        self.weight -= learning_rate * grad_weight
+        self.bias -= learning_rate * grad_bias
+        
         # ENDTODO
         ########################################
 
@@ -55,9 +72,18 @@ class LinearSoftmaxModel:
             logits: classification scores predicted on the batch; shape (N, K)
         """
         ########################################
-        # TODO: implement
+        
+        N = inputs.shape[0]
 
-        raise NotImplementedError
+        logits = inputs @ self.weight + self.bias  # (N, K)
+
+        # Compute softmax
+        exp_logits = torch.exp(logits)
+        softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
+
+        # Compute loss using cross-entropy
+        log_probs = -torch.log(softmax[torch.arange(N), targets])  # Shape: (N,)
+        loss = log_probs.mean().item()  # Total loss for a batch
 
         # ENDTODO
         ########################################
