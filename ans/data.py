@@ -53,7 +53,8 @@ class BatchLoader:
                 y = torch.tensor(y, dtype=torch.int64)
                 yield x, y
             else:
-                x = torch.stack(batch[0])
+                x, = zip(*batch)
+                x = torch.stack(batch)
                 yield (x,)
             
 
