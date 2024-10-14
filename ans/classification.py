@@ -235,9 +235,11 @@ def accuracy(scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     """
     
     ########################################
-    # TODO: implement
-    
-    raise NotImplementedError
+    predicted_classes = torch.argmax(scores, dim=1)  # Find indeces of the highest scores = the highest probability
+
+    correct_predictions = (predicted_classes == targets).float()  # (num_samples,)
+    acc = (1 / scores.shape[0]) * torch.sum(correct_predictions)
+    acc = acc.item()
     
     # ENDTODO
     ########################################
