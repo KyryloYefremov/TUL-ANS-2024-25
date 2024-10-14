@@ -54,7 +54,7 @@ class BatchLoader:
                 yield x, y
             else:
                 x, = zip(*batch)
-                x = torch.stack(batch)
+                x = torch.stack(x)
                 yield (x,)
             
 
