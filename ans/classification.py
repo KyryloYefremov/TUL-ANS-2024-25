@@ -262,9 +262,28 @@ def train_epoch(
         return whatever is needed
     """
     ########################################
-    # TODO: implement
+    total_loss = 0.0
+    correct_predictions = 0
+    total_samples = 0
 
-    raise NotImplementedError
+    for inputs, targets in loader:
+        loss, logits = model.train_step(inputs, targets, **train_step_kwargs)
+        
+        total_loss += loss * inputs.size(0)  # Scale loss by batch size
+
+        # Calculate accuracy for this batch
+        _, predicted_classes = torch.max(logits, dim=1)
+        batch_predictions = (predicted_classes == targets).sum().item()
+        correct_predictions += batch_predictions
+
+        # Update the total number of samples
+        total_samples += inputs.size(0)
+
+    # Calculate mean loss and mean accuracy
+    mean_loss = total_loss / total_samples if total_samples > 0 else 0.0
+    mean_acc = correct_predictions / total_samples if total_samples > 0 else 0.0
+
+    return mean_loss, mean_acc
 
     # ENDTODO
     ########################################
@@ -285,9 +304,28 @@ def validate(
         mean_acc: average accuracy achieved on the dataset during model training
     """
     ########################################
-    # TODO: implement
+    total_loss = 0.0
+    correct_predictions = 0
+    total_samples = 0
 
-    raise NotImplementedError
+    # Iterate over each batch in the validation loader
+    for inputs, targets in loader:
+        loss, logits = model.val_step(inputs, targets)
+        
+        total_loss += loss * inputs.size(0)  # Scale loss by batch size
+        
+        # Calculate accuracy for this batch
+        _, predicted_classes = torch.max(logits, dim=1)
+        batch_predictions = (predicted_classes == targets).sum().item()
+        correct_predictions += batch_predictions
+        
+        total_samples += inputs.size(0)
+
+    # Calculate mean loss and mean accuracy
+    mean_loss = total_loss / total_samples if total_samples > 0 else 0.0
+    mean_acc = correct_predictions / total_samples if total_samples > 0 else 0.0
+
+    return mean_loss, mean_acc
 
     # ENDTODO
     ########################################
