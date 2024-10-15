@@ -100,9 +100,27 @@ class LinearSVMModel(LinearSoftmaxModel):
         learning_rate: float = 1e-3
     ) -> tuple[float, torch.Tensor]:
         ########################################
-        # TODO: implement
+        N = inputs.shape[0]
 
-        raise NotImplementedError
+        logits = inputs @ self.weight + self.bias  # (N, K)
+
+        # Compute hinge loss
+        correct_class_scores = logits[torch.arange(N), targets].unsqueeze(1)  # (N, 1)
+        margins = torch.clamp(logits - correct_class_scores + 1, min=0)  # (N, K)
+        margins[torch.arange(N), targets] = 0
+
+        loss = (margins.sum() / N).item() # Mean hinge loss over batch
+
+        # Compute gradients
+        mask = (margins > 0).float()  # (N, K)
+        mask[torch.arange(N), targets] = -mask.sum(dim=1)
+        
+        grad_weight = (mask.T @ inputs / N).T  # Shape: (K, D)
+        grad_bias = mask.mean(dim=0)  # Shape: (K,)
+
+        # Update parameters
+        self.weight -= learning_rate * grad_weight
+        self.bias -= learning_rate * grad_bias
 
         # ENDTODO
         ########################################
@@ -115,9 +133,16 @@ class LinearSVMModel(LinearSoftmaxModel):
         targets: torch.Tensor,
     ) -> tuple[float, torch.Tensor]:
         ########################################
-        # TODO: implement
+        N = inputs.shape[0]
 
-        raise NotImplementedError
+        logits = inputs @ self.weight + self.bias  # (N, K)
+
+        # Compute hinge loss
+        correct_class_scores = logits[torch.arange(N), targets].unsqueeze(1)  # (N, 1)
+        margins = torch.clamp(logits - correct_class_scores + 1, min=0)  # (N, K)
+        margins[torch.arange(N), targets] = 0
+        
+        loss = (margins.sum() / N).item()  # Mean hinge loss over batch
 
         # ENDTODO
         ########################################
