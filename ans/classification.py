@@ -154,12 +154,11 @@ class TwoLayerPerceptron:
 
     def __init__(self, in_size: int, hidden_size: int, out_size: int, weight_scale: float = 0.001) -> None:
         ########################################
-        # TODO: implement
 
-        self.weight1 = ...
-        self.bias1 = ...
-        self.weight2 = ...
-        self.bias2 = ...
+        self.weight1 = torch.randn(in_size, hidden_size, dtype=torch.float32) * weight_scale
+        self.bias1 = torch.randn(hidden_size, dtype=torch.float32) * weight_scale
+        self.weight2 = torch.randn(hidden_size, out_size, dtype=torch.float32) * weight_scale
+        self.bias2 = torch.randn(out_size, dtype=torch.float32) * weight_scale
     
     def train_step(
         self,
