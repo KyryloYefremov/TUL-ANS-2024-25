@@ -261,9 +261,18 @@ class TwoLayerPerceptron:
             logits: classification scores predicted on the batch; shape (N, K)
         """
         ########################################
-        # TODO: implement
+        # Forward pass
+        prehidden = inputs @ self.weight1 + self.bias1
+        hidden = 1/(1 + torch.exp(-prehidden))  # Sigmoid
+        logits = hidden @ self.weight2 + self.bias2
 
-        raise NotImplementedError
+        ## Softmax and cross-entropy evaluation
+        exp_logits = torch.exp(logits)
+        softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
+
+        n_samples = targets.shape[0]
+        log_probs = -torch.log(softmax[torch.arange(n_samples), targets])
+        loss = log_probs.mean().item()  # Total loss for a batch
 
         # ENDTODO
         ########################################
