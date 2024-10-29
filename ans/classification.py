@@ -167,8 +167,6 @@ class TwoLayerPerceptron:
         learning_rate: float = 1e-3
     ) -> tuple[float, torch.Tensor]:
         ########################################
-        # TODO: implement
-        # 
         # Some of the intermediate gradients that are to be expected for the test data used in
         # test_two_layer_perceptron.TestTrainStep:
         #   dlogits = torch.tensor([  # gradient w.r.t. output of the network
@@ -202,7 +200,47 @@ class TwoLayerPerceptron:
         #    [ 0.0003, -0.0001,  0.0153, -0.0004]])
         #  ])
 
-        raise NotImplementedError
+        # Forward pass
+        prehidden = inputs @ self.weight1 + self.bias1
+        hidden = 1/(1 + torch.exp(-prehidden))  # Sigmoid
+        logits = hidden @ self.weight2 + self.bias2
+
+        ## Softmax and cross-entropy evaluation
+        exp_logits = torch.exp(logits)
+        softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
+
+        n_samples = targets.shape[0]
+        log_probs = -torch.log(softmax[torch.arange(n_samples), targets])
+        loss = log_probs.mean().item()
+
+        # Backward pass: gradients computing
+
+        ## Gradients of the output layer
+        ### grad_logits = softmax - one-hot true labels
+        dlogits = softmax.clone()
+        dlogits[torch.arange(n_samples), targets] -= 1
+        dlogits /= n_samples
+        
+        ### Gradients pro weights2 and bias2
+        dweight2 = hidden.T @ dlogits
+        dbias2 = dlogits.sum(dim=0)
+
+        ## Gradients of the hidden layer
+        dhidden = dlogits @ self.weight2.T
+
+        ## Gradients of the input layer
+        ### Sigmoid derivation: sig(x) * (1 - sig(x))
+        dprehidden = dhidden * hidden * (1 - hidden)
+
+        ### Gradients for weights1 and bias1
+        dweight1 = inputs.T @ dprehidden
+        dbias1 = dprehidden.sum(dim=0)
+
+        # Update parameters
+        self.weight2 -= learning_rate * dweight2
+        self.bias2 -= learning_rate * dbias2
+        self.weight1 -= learning_rate * dweight1
+        self.bias1 -= learning_rate * dbias1
 
         # ENDTODO
         ########################################
