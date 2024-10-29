@@ -200,41 +200,42 @@ class TwoLayerPerceptron:
         #    [ 0.0003, -0.0001,  0.0153, -0.0004]])
         #  ])
 
+        n_samples = targets.shape[0]  # N
+
         # Forward pass
-        prehidden = inputs @ self.weight1 + self.bias1
+        prehidden = inputs @ self.weight1 + self.bias1  # (N, hidden_size)
         hidden = 1/(1 + torch.exp(-prehidden))  # Sigmoid
-        logits = hidden @ self.weight2 + self.bias2
+        logits = hidden @ self.weight2 + self.bias2  # (N, out_size)
 
         ## Softmax and cross-entropy evaluation
         exp_logits = torch.exp(logits)
         softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
 
-        n_samples = targets.shape[0]
-        log_probs = -torch.log(softmax[torch.arange(n_samples), targets])
+        log_probs = -torch.log(softmax[torch.arange(n_samples), targets])  # (N,)
         loss = log_probs.mean().item()
 
         # Backward pass: gradients computing
 
         ## Gradients of the output layer
         ### grad_logits = softmax - one-hot true labels
-        dlogits = softmax.clone()
+        dlogits = softmax.clone()  # (N, out_size)
         dlogits[torch.arange(n_samples), targets] -= 1
         dlogits /= n_samples
         
         ### Gradients pro weights2 and bias2
-        dweight2 = hidden.T @ dlogits
-        dbias2 = dlogits.sum(dim=0)
+        dweight2 = hidden.T @ dlogits  # (hidden_size, out_size)
+        dbias2 = dlogits.sum(dim=0)  # (out_size,)
 
         ## Gradients of the hidden layer
-        dhidden = dlogits @ self.weight2.T
+        dhidden = dlogits @ self.weight2.T  # (N, hidden_size)
 
         ## Gradients of the input layer
         ### Sigmoid derivation: sig(x) * (1 - sig(x))
-        dprehidden = dhidden * hidden * (1 - hidden)
+        dprehidden = dhidden * hidden * (1 - hidden)  # (N, hidden_size)
 
         ### Gradients for weights1 and bias1
-        dweight1 = inputs.T @ dprehidden
-        dbias1 = dprehidden.sum(dim=0)
+        dweight1 = inputs.T @ dprehidden  # (in_size, hidden_size)
+        dbias1 = dprehidden.sum(dim=0)  # (hidden_size,)
 
         # Update parameters
         self.weight2 -= learning_rate * dweight2
