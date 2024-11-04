@@ -39,9 +39,14 @@ class Variable:
 
     def __add__(self, other: BinOpOtherType) -> Self:
         ########################################
-        # TODO: implement
-
-        raise NotImplementedError
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            return dout.clone(), dout.clone()
+        
+        return self.__class__(
+            self.data + other.data,
+            parents = (self, other),
+            grad_fn = grad_fn
+        )
 
         # ENDTODO
         ########################################
@@ -57,9 +62,14 @@ class Variable:
 
     def __sub__(self, other: BinOpOtherType) -> Self:
         ########################################
-        # TODO: implement
-
-        raise NotImplementedError
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            return dout.clone(), -1 * dout.clone()
+        
+        return self.__class__(
+            self.data - other.data,
+            parents = (self, other),
+            grad_fn = grad_fn
+        )
 
         # ENDTODO
         ########################################
@@ -75,9 +85,14 @@ class Variable:
 
     def __mul__(self, other: BinOpOtherType) -> Self:
         ########################################
-        # TODO: implement
-
-        raise NotImplementedError
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            return dout * other.data, dout * self.data
+        
+        return self.__class__(
+            self.data * other.data,
+            parents = (self, other),
+            grad_fn = grad_fn
+        )
 
         # ENDTODO
         ########################################
@@ -93,9 +108,14 @@ class Variable:
     
     def __truediv__(self, other: BinOpOtherType) -> Self:
         ########################################
-        # TODO: implement
-
-        raise NotImplementedError
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            return 1 / other.data * dout, - self.data / other.data ** 2 * dout
+        
+        return self.__class__(
+            self.data / other.data,
+            parents = (self, other),
+            grad_fn = grad_fn
+        )
 
         # ENDTODO
         ########################################
