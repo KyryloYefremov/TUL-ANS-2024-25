@@ -121,7 +121,7 @@ def rand_var(
         dtype: torch.dtype = torch.float64,
         device: torch.device = torch.device('cpu'),
         rng_fn: Callable = torch.randn
-):
+) -> ans.autograd.Variable:
     tensor = mean + std * rng_fn(shape, dtype=dtype, device=device)
     if requires_grad:
         tensor = tensor.requires_grad_()
