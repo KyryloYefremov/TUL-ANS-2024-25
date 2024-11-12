@@ -3,6 +3,10 @@ from typing import Any, Self
 import torch
 
 import ans
+import ans.autograd
+
+
+###################################### Linear Softmax #####################################################
 
 
 class LinearSoftmaxModel:
@@ -89,6 +93,9 @@ class LinearSoftmaxModel:
         ########################################
         
         return loss, logits
+    
+
+###################################### Linear SVM #####################################################
 
 
 class LinearSVMModel(LinearSoftmaxModel):
@@ -148,6 +155,9 @@ class LinearSVMModel(LinearSoftmaxModel):
         ########################################
         
         return loss, logits
+
+
+###################################### Two Layer Perceptron #####################################################
 
 
 class TwoLayerPerceptron:
@@ -295,6 +305,107 @@ class TwoLayerPerceptron:
         model.weight2 = dic['weight2']
         model.bias2 = dic['bias2']
         return model
+    
+
+###################################### Two Layer Perceptron Autograd #####################################################
+
+
+def softmax_cross_entropy(logits: torch.Tensor | ans.autograd.Variable, targets: torch.Tensor):
+    """
+    Compute softmax cross entropy loss.
+    """
+    n_samples = targets.shape[0]
+
+    exp_logits = logits.exp()
+    softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
+
+    log_probs = -1 * softmax[torch.arange(n_samples), targets].log()  # (N,)
+    loss = log_probs.mean()
+    return loss
+
+
+class TwoLayerPerceptronAutograd(TwoLayerPerceptron):
+
+    def __init__(self, in_size: int, hidden_size: int, out_size: int, weight_scale: float = 0.001) -> None:
+        # init all weights and biases as Variable instances to automate gradients computing
+        self.weight1 = ans.autograd.Variable(torch.randn(in_size, hidden_size, dtype=torch.float32) * weight_scale)
+        self.bias1 = ans.autograd.Variable(torch.randn(hidden_size, dtype=torch.float32) * weight_scale)
+        self.weight2 = ans.autograd.Variable(torch.randn(hidden_size, out_size, dtype=torch.float32) * weight_scale)
+        self.bias2 = ans.autograd.Variable(torch.randn(out_size, dtype=torch.float32) * weight_scale)
+
+    
+    def train_step(
+        self,
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
+        learning_rate: float = 1e-3
+    ) -> tuple[float, torch.Tensor]:
+        """
+        Args:
+            inputs: input data batch; shape (N, D)
+            targets: vector of class indicies (integers); shape (N,)
+        Returns:
+            loss: average loss over the batch; float
+            logits: classification scores predicted on the batch; shape (N, K)
+        """
+        
+        # Forward pass
+        prehidden = inputs @ self.weight1 + self.bias1  # (N, hidden_size)
+        hidden = prehidden.sigmoid()  # Sigmoid
+        logits = hidden @ self.weight2 + self.bias2  # (N, out_size)
+
+        ## Softmax and cross-entropy evaluation
+        loss = softmax_cross_entropy(
+            logits=logits,
+            targets=targets,
+        )
+
+
+        self.weight2.grad = 0
+        self.weight1.grad = 0
+        self.bias2.grad = 0
+        self.bias1.grad = 0
+        # Backward pass: gradients computing from logits (last node) using autograd
+        loss.backprop()
+
+        # Update parameters
+        self.weight2 -= learning_rate * self.weight2.grad
+        self.bias2 -= learning_rate * self.bias2.grad
+        self.weight1 -= learning_rate * self.weight1.grad
+        self.bias1 -= learning_rate * self.bias1.grad
+
+        return loss.data, logits.data
+    
+    
+    def val_step(
+        self,
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
+    ) -> tuple[float, torch.Tensor]:
+        """
+        Args:
+            inputs: input data batch; shape (N, D)
+            targets: vector of class indicies (integers); shape (N,)
+        Returns:
+            loss: average loss over the batch; float
+            logits: classification scores predicted on the batch; shape (N, K)
+        """
+
+        # Forward pass
+        prehidden = inputs @ self.weight1 + self.bias1
+        hidden = prehidden.sigmoid()  # Sigmoid
+        logits = hidden @ self.weight2 + self.bias2
+
+        ## Softmax and cross-entropy evaluation
+        loss = softmax_cross_entropy(
+            logits=logits,
+            targets=targets
+        )
+        
+        return loss.data, logits.data
+    
+
+###################################### PUBLIC FUNTIONS #####################################################
 
 
 def accuracy(scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
