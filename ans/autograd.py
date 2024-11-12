@@ -236,84 +236,200 @@ class Variable:
         # Call basic 'truediv' with reversed order
         return self.__truediv__(other, is_reversed=True)
 
-    def __matmul__(self, other: BinOpOtherType) -> Self:
-        ########################################
-        # TODO: implement
+    def __matmul__(self, other: BinOpOtherType, is_reversed=False) -> Self:
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            """
+            Funtion that represents gradient computation for '@' operation. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            if not is_reversed:
+                grad_self = dout @ other.data.mT if isinstance(other, Variable) else dout @ other.mT
+                grad_other = self.data.mT @ dout if isinstance(other, Variable) else torch.tensor(0., dtype=self.data.dtype, device=self.data.device)
+            else:
+                grad_self = other.data.mT @ dout if isinstance(other, Variable) else other.mT @ dout
+                grad_other = dout @ self.data.mT if isinstance(other, Variable) else torch.tensor(0., dtype=self.data.dtype, device=self.data.device)
 
-        raise NotImplementedError
+            # Use broadcasting for self grad
+            if grad_self.shape != self.data.shape:
+                grad_self = self.broadcast(grad_self, self.data.shape)
+            # Use broadcasting for other grad
+            if grad_other.shape != (other.data.shape if isinstance(other, Variable) else torch.Size()):
+                grad_other = self.broadcast(grad_other, other.data.shape if isinstance(other, Variable) else torch.Size())
+            if not is_reversed:
+                return grad_self, grad_other
+            else:
+                return grad_other, grad_self
+        
+        # If other is not a Variable instance, create it as new one
+        if not isinstance(other, Variable):
+            other_var = self.__class__(other)
+        else:
+            other_var = other
 
-        # ENDTODO
-        ########################################
+        # Return result as new instance of Variable. Reverts operands if order is reversed. Also reverse parents if __rmul__ called.
+        return self.__class__(
+            self.data @ other_var.data if not is_reversed else other_var.data @ self.data,
+            parents=(self, other_var) if not is_reversed else (other_var, self),
+            grad_fn=grad_fn
+        )
     
     def __rmatmul__(self, other: BinOpOtherType) -> Self:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        # Call basic 'matmul' with reversed order
+        return self.__matmul__(other, is_reversed=True)
 
     def __getitem__(self, item) -> Self:
-        ########################################
-        # TODO: implement
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            """
+            Funtion that represents gradient computation for operation 'get element by index'. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            grad = torch.zeros_like(self.data)
+            grad[item] = dout
+            return grad,
 
-        raise NotImplementedError
-    
-        # ENDTODO
-        ########################################
+        sliced_data = self.data[item]
+
+        # Return result as new instance of Variable.
+        return self.__class__(
+            sliced_data,
+            parents=(self,),
+            grad_fn=grad_fn
+        )
     
     def log(self) -> Self:
-        ########################################
-        # TODO: implement
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            """
+            Funtion that represents gradient computation for operation 'logarithm'. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            return dout / self.data,
 
-        raise NotImplementedError
-    
-        # ENDTODO
-        ########################################
+        # Return result as new instance of Variable.
+        return self.__class__(
+            torch.log(self.data),
+            parents=(self,),
+            grad_fn=grad_fn
+        )
 
     def exp(self) -> Self:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            """
+            Funtion that represents gradient computation for operation 'exponent'. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            return dout * e, 
     
-        # ENDTODO
-        ########################################
+        # Forward pass
+        e = torch.exp(self.data)
+
+        # Return result as new instance of Variable.
+        return self.__class__(
+            e,
+            parents=(self,),
+            grad_fn=grad_fn
+        )
     
     def sigmoid(self) -> Self:
-        ########################################
-        # TODO: implement
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            """
+            Funtion that represents gradient computation for function 'sigmoid'. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            return dout * sigma * (1. - sigma),
+            
+        # Compute forward pass
+        sigma = 1 / (1 + torch.exp(-self.data))
 
-        raise NotImplementedError
-    
-        # ENDTODO
-        ########################################
+        # Return result as new instance of Variable.
+        return self.__class__(
+            sigma,
+            parents=(self,),
+            grad_fn=grad_fn
+        )
+        
     
     def sum(self, dim: Union[None, int, tuple[int, ...]] = None, keepdim: bool = False) -> Self:
-        ########################################
-        # TODO: implement
+        # Check the type of 'dim' param. Convert it to tuple if it is not.
+        if dim is None:
+            dim_tuple = tuple()
+        elif isinstance(dim, int):
+            dim_tuple = (dim,)
+        else:
+            dim_tuple = dim 
+        
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            """
+            Funtion that represents gradient computation for function 'sum'. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            if not keepdim:
+                # Add new dim in index 'd'                
+                for d in dim_tuple:
+                    dout = dout.unsqueeze(d)
+            
+            # Expand the grad to the size of data
+            grad = dout.expand_as(self.data)
+            return grad, 
 
-        raise NotImplementedError
-    
-        # ENDTODO
-        ########################################
-    
+        # Return result as new instance of Variable.
+        return self.__class__(
+            self.data.sum(dim=dim, keepdim=keepdim),
+            parents=(self,),
+            grad_fn=grad_fn
+        )
+
     def mean(self, dim: Union[None, int, tuple[int, ...]] = None, keepdim: bool = False) -> Self:
-        ########################################
-        # TODO: implement
+        # Check the type of 'dim' param. Convert it to tuple if it is not.
+        if dim is None:
+            dim_tuple = tuple()
+        elif isinstance(dim, int):
+            dim_tuple = (dim,)
+        else:
+            dim_tuple = dim 
+        
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            """
+            Funtion that represents gradient computation for function 'mean'. Used in backprop.
+            @params:
+                dout - gradient value from previous node.
+            """
+            # Count number of elements that were used in mean computing
+            mean_members = 1
+            for d in dim_tuple:
+                mean_members *= self.data.size(d)
 
-        raise NotImplementedError
-    
-        # ENDTODO
-        ########################################
+            if not keepdim:                
+                for d in dim_tuple:
+                    dout = dout.unsqueeze(d)
+            
+            # If mean was apllied on all dims => mean_numbers will be a number of all gradient elements
+            grad = dout.expand_as(self.data)
+            if len(dim_tuple) == 0:
+                mean_members = grad.numel()
+
+            return grad / mean_members, 
+
+        # Return result as new instance of Variable.
+        return self.__class__(
+            self.data.mean(dim=dim, keepdim=keepdim),
+            parents=(self,),
+            grad_fn=grad_fn
+        )
 
     @staticmethod
     def _topological_sort(var, visited, topo_order):
+        """
+        Topologically sort all nodes in neural network variables graph. Must start at last node (logits)
+        """
         if var not in visited:
             visited.add(var)
             # Recursively apply topological sort for all parent nodes
-            # print(f"{var} : \n\t{var.parents}")
             for parent in var.parents:
                 __class__._topological_sort(parent, visited, topo_order)
             topo_order.append(var)
