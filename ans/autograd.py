@@ -59,9 +59,9 @@ class Variable:
             if grad_shape[dim] != target_shape[dim]:
                 grad = grad.sum(dim=dim, keepdim=True)
 
-        # If grad still has additional dims (is bigger than target), sum it from the end
+        # If grad still has additional dims (is bigger than target), sum it from the beggining
         while len(grad.shape) > len(target_shape):
-            grad = grad.sum(dim=-1)
+            grad = grad.sum(dim=0)
         
         return grad
 
@@ -308,6 +308,18 @@ class Variable:
         # ENDTODO
         ########################################
 
+    @staticmethod
+    def _topological_sort(var, visited, topo_order):
+        if var not in visited:
+            visited.add(var)
+            # Recursively apply topological sort for all parent nodes
+            # print(f"{var} : \n\t{var.parents}")
+            for parent in var.parents:
+                __class__._topological_sort(parent, visited, topo_order)
+            topo_order.append(var)
+        
+        return topo_order
+
 
     def backprop(self, dout: Optional[torch.Tensor] = None) -> None:
         """
@@ -318,10 +330,28 @@ class Variable:
             dout: Incoming gradient on self; if None, then set to tensor of ones with proper shape and dtype
         """
 
-        ########################################
-        # TODO: implement
+        # init incoming gradient on self (final node)
+        self.grad = dout if dout is not None else torch.ones_like(self.data)
 
-        raise NotImplementedError
+        # topologically sort the nodes to avoid multiple gradient computing for one variable
+        visited = set()
+        topo_order = list()
+        topo_order = __class__._topological_sort(self, visited, topo_order)
 
-        # ENDTODO
-        ########################################
+        # backprop on topologically sorted order
+        for var in reversed(topo_order):
+            # skip input nodes or nodes without gradients
+            if var.grad_fn is None or var.grad is None:
+                continue  
+
+            # compute grads for each parent
+            grads = var.grad_fn(var.grad)
+
+            # per parent:
+            for i, parent in enumerate(var.parents):
+                if parent.grad is None:
+                    parent.grad = grads[i]  # set parent gradient to computed gradient
+                else:
+                    parent.grad += grads[i]  # accumulate gradient if it was already previously computed
+
+        
