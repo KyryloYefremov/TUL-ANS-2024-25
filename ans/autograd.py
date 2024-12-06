@@ -351,7 +351,26 @@ class Variable:
             parents=(self,),
             grad_fn=grad_fn
         )
-        
+    
+    def relu(self) -> Self:
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+                """
+                Funtion that represents gradient computation for function 'ReLU'. Used in backprop.
+                @params:
+                    dout - gradient value from previous node.
+                """
+                print(relu_value)
+                return dout * relu_value
+                
+        # Compute forward pass
+        relu_value = torch.maximum(self.data, torch.tensor(0.0, dtype=self.data.dtype))
+
+        # Return result as new instance of Variable.
+        return self.__class__(
+            relu_value,
+            parents=(self,),
+            grad_fn=grad_fn
+        )
     
     def sum(self, dim: Union[None, int, tuple[int, ...]] = None, keepdim: bool = False) -> Self:
         # Check the type of 'dim' param. Convert it to tuple if it is not.
