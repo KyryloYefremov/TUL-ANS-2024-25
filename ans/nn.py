@@ -373,24 +373,13 @@ class Linear(Module):
 
     def __init__(self, num_in: int, num_out: int) -> None:
         super().__init__()
-
-        ########################################
-        # TODO: initialize weight and bias
-
-        self.weight = ...
-        self.bias = ...
-
-        # ENDTODO
-        ########################################
-
+        # Xavier/Glorot initialization for weights
+        limit = 1 / torch.sqrt(torch.tensor(num_in, dtype=torch.float32))
+        self.weight = Variable(torch.empty(num_in, num_out).uniform_(-limit, limit))
+        self.bias = Variable(torch.empty(num_out).uniform_(-limit, limit))
+        
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        return x @ self.weight + self.bias
 
 
 class Sigmoid(Module):
@@ -399,13 +388,7 @@ class Sigmoid(Module):
         super().__init__()
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-    
-        # ENDTODO
-        ########################################
+        return x.sigmoid()
 
 
 class ReLU(Module):
