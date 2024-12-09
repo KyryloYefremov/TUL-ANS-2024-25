@@ -398,13 +398,7 @@ class ReLU(Module):
         self.negative_slope = negative_slope
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        return x.relu()
 
 
 class Dropout(Module):

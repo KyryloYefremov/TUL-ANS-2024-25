@@ -359,8 +359,7 @@ class Variable:
                 @params:
                     dout - gradient value from previous node.
                 """
-                print(relu_value)
-                return dout * relu_value
+                return dout * (self.data > 0).int(),
                 
         # Compute forward pass
         relu_value = torch.maximum(self.data, torch.tensor(0.0, dtype=self.data.dtype))
