@@ -543,13 +543,9 @@ class Sequential(Module):
         self.layers = layers
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        for layer in self.layers:
+            x = layer.forward(x)
+        return x
 
 
 class Optimizer:
