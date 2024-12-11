@@ -163,26 +163,29 @@ class DropoutFunction(Function):
         p_drop: float = 0.5,
         training: bool = False,
     ) -> tuple[torch.Tensor, tuple]:
-        ########################################
-        # TODO: implement
+        
+        if training:
+            # init m as random number from Uniform[0, 1] for every data instance of input
+            m = torch.rand_like(input, dtype=input.dtype, device=input.device)
 
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+            # calculate output for every data instance if its m >= p_dout else 0
+            output = input / (1 - p_drop) * (m >= p_drop).int()
+            cache = (p_drop, m)
+        else:
+            # if its not training mode, behaives as identity
+            output = input.clone()
+            cache = ()
 
         return output, cache
 
     @staticmethod
     def backward(doutput: torch.Tensor, cache=()) -> tuple[torch.Tensor, ...]:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
-
+        if len(cache) != 0:
+            p_drop, m = cache
+            # calculate input for every data instance if its m >= p_dout else 0
+            dinput = doutput / (1 - p_drop) * (m >= p_drop).int()
+        else:
+            dinput = doutput.clone()
         return (dinput,)
 
 
@@ -408,13 +411,8 @@ class Dropout(Module):
         self.p_drop = p_drop
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
+        return DropoutFunction.apply(x, p_drop=self.p_drop, training=self.training)
 
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
 
 
 class BatchNorm1d(Module):
@@ -609,7 +607,7 @@ class Adam(Optimizer):
 
     def step(self) -> None:
         self._num_steps += 1
-        
+
         # for every model parametr do one normalisation step
         for param in self.parameters:
             qt = param.grad + self.weight_decay * param.data
