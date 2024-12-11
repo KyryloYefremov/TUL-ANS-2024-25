@@ -572,22 +572,16 @@ class SGD(Optimizer):
         self.momentum = momentum
         self.weight_decay = weight_decay
 
-        ########################################
-        # TODO: init _velocities to zeros
-
-        self._velocities: dict[Variable, torch.Tensor] = ...
-
-        # ENDTODO
-        ########################################
+        # init velocities to zeros
+        self._velocities: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype) for param in self.parameters}
 
     def step(self) -> None:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        # for every model parametr do one normalisation step
+        for param in self.parameters:
+            qt = param.grad + self.weight_decay * param.data
+            vt = self.momentum * self._velocities.get(param) - self.learning_rate * qt  # new velocity
+            self._velocities[param] = vt
+            param.data = param.data + vt  # accumulate parametr
 
 
 class Adam(Optimizer):
@@ -608,21 +602,29 @@ class Adam(Optimizer):
         self.beta2 = beta2
         self.eps = eps
 
-        ########################################
-        # TODO: init _num_steps to zero, _m to zeros, _v to zeros
-
-        self._num_steps = ...
-        self._m: dict[Variable, torch.Tensor] = ...
-        self._v: dict[Variable, torch.Tensor] = ...
-
-        # ENDTODO
-        ########################################
+        self._num_steps = 0
+        # buffers for the first and second moments, which are updated at each iteration
+        self._m: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype) for param in self.parameters}
+        self._v: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype) for param in self.parameters}
 
     def step(self) -> None:
-        ########################################
-        # TODO: implement
+        self._num_steps += 1
+        
+        # for every model parametr do one normalisation step
+        for param in self.parameters:
+            qt = param.grad + self.weight_decay * param.data
+            
+            # update buffers
+            mt = self.beta1 * self._m.get(param) + (1 - self.beta1) * qt
+            self._m[param] = mt
+            vt = self.beta2 * self._v.get(param) + (1 - self.beta2) * qt**2
+            self._v[param] = vt
 
-        raise NotImplementedError
+            # offset corrections for the first and the second moments
+            mu = mt / (1 - self.beta1 ** self._num_steps)
+            vi = vt / (1 - self.beta2 ** self._num_steps)
 
-        # ENDTODO
-        ########################################
+            # accumulate parametr
+            param.data = param.data - self.learning_rate * mu / (torch.sqrt(vi) + self.eps)
+            
+            
