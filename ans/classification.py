@@ -1,9 +1,10 @@
-from typing import Any, Self
+from typing import Any, Callable, Self, Union
 
 import torch
 
 import ans
 import ans.autograd
+from ans.autograd import Variable
 
 
 ###################################### Linear Softmax #####################################################
@@ -403,6 +404,45 @@ class TwoLayerPerceptronAutograd(TwoLayerPerceptron):
         )
         
         return loss.data, logits.data
+    
+
+class AutogradClassifier(ans.nn.Module):
+    def __init__(self, backbone: ans.nn.Module, optimizer: ans.nn.Optimizer) -> None:
+        self.backbone = backbone
+        self.optimizer = optimizer
+    
+    def train_step(
+        self,
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
+        **kwargs
+    ) -> tuple[float, torch.Tensor]:
+        ########################################
+        # TODO: implement
+        
+        raise NotImplementedError
+        # ENDTODO
+        ########################################
+
+        return loss.data.item(), logits.data
+    def val_step(
+        self,
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
+    ) -> tuple[float, torch.Tensor]:
+        ########################################
+        # TODO: implement
+        raise NotImplementedError
+        # ENDTODO
+        ########################################
+        
+        return loss.data.item(), logits.data
+    def save(self, filename: str) -> None:
+        torch.save(self, filename)  # not the correct & safe way to do this
+    
+    @classmethod
+    def load(cls, filename: str) -> Self:
+        return torch.load(filename, weights_only=False)  # not the correct & safe way to do this
     
 
 ###################################### PUBLIC FUNTIONS #####################################################
