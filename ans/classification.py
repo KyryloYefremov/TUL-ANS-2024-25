@@ -310,21 +310,6 @@ class TwoLayerPerceptron:
 
 ###################################### Two Layer Perceptron Autograd #####################################################
 
-
-def softmax_cross_entropy(logits: torch.Tensor | ans.autograd.Variable, targets: torch.Tensor):
-    """
-    Compute softmax cross entropy loss.
-    """
-    n_samples = targets.shape[0]
-
-    exp_logits = logits.exp()
-    softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
-
-    log_probs = -1 * softmax[torch.arange(n_samples), targets].log()  # (N,)
-    loss = log_probs.mean()
-    return loss
-
-
 class TwoLayerPerceptronAutograd(TwoLayerPerceptron):
 
     def __init__(self, in_size: int, hidden_size: int, out_size: int, weight_scale: float = 0.001) -> None:
@@ -417,12 +402,21 @@ class AutogradClassifier(ans.nn.Module):
         targets: torch.Tensor,
         **kwargs
     ) -> tuple[float, torch.Tensor]:
-        ########################################
-        # TODO: implement
-        
-        raise NotImplementedError
-        # ENDTODO
-        ########################################
+
+        # run forward pass on all layers
+        logits = self.backbone(inputs)
+        # calculate loss using Softmax Cross Entropy
+        loss = softmax_cross_entropy(
+            logits=logits,
+            targets=targets,
+        )
+        # set all gradients to zero
+        self.backbone.zero_grad()
+
+        # run backward pass on all layers
+        loss.backprop()
+        # update parameters
+        self.optimizer.step(**kwargs)
 
         return loss.data.item(), logits.data
     def val_step(
@@ -430,11 +424,14 @@ class AutogradClassifier(ans.nn.Module):
         inputs: torch.Tensor,
         targets: torch.Tensor,
     ) -> tuple[float, torch.Tensor]:
-        ########################################
-        # TODO: implement
-        raise NotImplementedError
-        # ENDTODO
-        ########################################
+        
+        # run forward on all layers
+        logits = self.backbone(inputs)
+        # calculate loss using Softmax Cross Entropy
+        loss = softmax_cross_entropy(
+            logits=logits,
+            targets=targets,
+        )
         
         return loss.data.item(), logits.data
     def save(self, filename: str) -> None:
@@ -446,6 +443,20 @@ class AutogradClassifier(ans.nn.Module):
     
 
 ###################################### PUBLIC FUNTIONS #####################################################
+
+
+def softmax_cross_entropy(logits: torch.Tensor | ans.autograd.Variable, targets: torch.Tensor):
+    """
+    Compute softmax cross entropy loss.
+    """
+    n_samples = targets.shape[0]
+
+    exp_logits = logits.exp()
+    softmax = exp_logits / exp_logits.sum(dim=1, keepdim=True)
+
+    log_probs = -1 * softmax[torch.arange(n_samples), targets].log()  # (N,)
+    loss = log_probs.mean()
+    return loss
 
 
 def accuracy(scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
