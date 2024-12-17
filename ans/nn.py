@@ -63,13 +63,39 @@ class BatchNorm1dFunction(Function):
             cache: tuple of intermediate results to use in backward
         """
 
-        ########################################
-        # TODO: implement
+        N, D = input.shape  # N=num_samples, D=num_features
 
-        raise NotImplementedError
+        if weight is None:
+            weight = Variable(torch.ones(D, dtype=input.dtype, device=input.device), name='weight')
 
-        # ENDTODO
-        ########################################
+        if bias is None:
+            bias = Variable(torch.zeros(D, dtype=input.dtype, device=input.device), name='bias')
+
+        # training mode
+        if training:    
+            batch_mean = input.mean(dim=0)
+            batch_var = input.var(dim=0, unbiased=False)
+
+            # normilize input
+            x_hat = (input - batch_mean) / torch.sqrt(batch_var + eps)
+
+            # accumulate running mean and var
+            if running_mean is not None and running_var is not None:
+                running_mean.data = (1. - momentum) * running_mean + momentum * batch_mean
+                running_var.data = (1. - momentum) * running_var + momentum * (batch_var * N / (N - 1))
+
+            # cached necessary parametrs
+            cache = (N, x_hat, weight, batch_var, eps, training)
+
+        # evaluation mode
+        else:
+            x_hat = (input - running_mean) / torch.sqrt(running_var + eps)
+
+            # cached necessary parametrs
+            cache = (N, x_hat, weight, running_var, eps, training)      
+
+        # calculate output
+        output = weight.data * x_hat + bias.data
 
         return output, cache
 
@@ -82,16 +108,23 @@ class BatchNorm1dFunction(Function):
         Returns:
             tuple of gradients w.r.t. input (single-element tuple)
         """
+        # extract context from forward pass
+        n_samples, x_hat, weight, var, eps, training = cache
 
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
-
-        return dinput, dweight, dbias
+        # evaluation mode:
+        if not training:
+            # gradient on input
+            dinput = (doutput * weight.data) / torch.sqrt(var + eps)
+        # training mode:
+        else:
+            # gradient on input
+            dinput = weight.data / torch.sqrt(var + eps) * (doutput - doutput.mean(dim=0) - 1/n_samples * x_hat * torch.sum(doutput * x_hat, dim=0))
+        
+        # gradients on weight and bias
+        dweight = torch.sum(doutput * x_hat, dim=0)
+        dbias = torch.sum(doutput, dim=0)
+        
+        return (dinput, dweight, dbias)
 
 
 class BatchNorm2dFunction(Function):
@@ -425,29 +458,22 @@ class BatchNorm1d(Module):
         self.eps = eps
         self.affine = affine
 
-        ########################################
-        # TODO: initialize gamma, beta, running_mean, running_var
-        # if affine, then gamma to ones (learnable), otherwise set to None
-        # if affine, then beta to zeros (learnable), otherwise set to None
-        # running_mean to zeros
-        # running_var to ones
-
-        self.weight = ...
-        self.bias = ...
-        self.running_mean = ...
-        self.running_var = ...
-
-        # ENDTODO
-        ########################################
+        self.weight = Variable(torch.ones(self.num_features), name='weight') if self.affine else None
+        self.bias = Variable(torch.zeros(self.num_features), name='bias') if self.affine else None
+        self.running_mean = torch.zeros(self.num_features)
+        self.running_var = torch.ones(self.num_features)
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        return BatchNorm1dFunction.apply(
+            x,
+            self.weight,
+            self.bias,
+            running_mean=self.running_mean,
+            running_var=self.running_var,
+            momentum=self.momentum,
+            eps=self.eps,
+            training=self.training,
+        )
 
 
 class BatchNorm2d(BatchNorm1d):
