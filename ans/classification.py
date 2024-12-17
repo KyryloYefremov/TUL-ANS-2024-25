@@ -482,7 +482,7 @@ def accuracy(scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 
 
 def train_epoch(
-    model: LinearSoftmaxModel,
+    model: LinearSoftmaxModel | ans.nn.Module,
     loader: ans.data.BatchLoader,
     **train_step_kwargs
 ) -> Any:
@@ -490,12 +490,11 @@ def train_epoch(
     Trains `model` on the dataset `loader` for one epoch.
 
     Args:
-        model: Model to train. Must have method `train_step`.
+        model: Model to train. Must have method `train_step` or be a class `ans.nn.Module`.
         loader: loader of the training dataset
     Returns:
         return whatever is needed
     """
-    ########################################
 
     total_loss = 0.0
     correct_predictions = 0
@@ -503,9 +502,13 @@ def train_epoch(
 
     # Iterate over each batch in the train loader
     for inputs, targets in loader:
-        batch_loss, logits = model.train_step(inputs, targets, **train_step_kwargs)
+
+        if isinstance(model, ans.nn.Module):
+            batch_loss, logits = model.train(inputs, targets, **train_step_kwargs)
+        else:
+            batch_loss, logits = model.train_step(inputs, targets, **train_step_kwargs)
         
-        total_loss += batch_loss * inputs.shape[0]  # Scale loss
+        total_loss += batch_loss * inputs.shape[0]   # Scale loss
         correct_predictions += (logits.argmax(dim=1) == targets).sum().item()
         num_samples += inputs.shape[0]
 
@@ -513,9 +516,6 @@ def train_epoch(
     mean_acc = correct_predictions / num_samples
 
     return mean_loss, mean_acc
-
-    # ENDTODO
-    ########################################
 
 
 def validate(
@@ -532,14 +532,16 @@ def validate(
         mean_loss: average loss achieved on the dataset during training
         mean_acc: average accuracy achieved on the dataset during model training
     """
-    ########################################
     total_loss = 0.0
     correct_predictions = 0
     total_samples = 0
 
     # Iterate over each batch in the validation loader
     for inputs, targets in loader:
-        loss, logits = model.val_step(inputs, targets)
+        if isinstance(model, ans.nn.Module):
+            loss, logits = model.eval(inputs, targets)
+        else:
+            loss, logits = model.val_step(inputs, targets)
         
         total_loss += loss * inputs.size(0)  # Scale loss by batch size
         
