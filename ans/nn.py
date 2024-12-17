@@ -597,7 +597,7 @@ class SGD(Optimizer):
         self.weight_decay = weight_decay
 
         # init velocities to zeros
-        self._velocities: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype) for param in self.parameters}
+        self._velocities: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype, device=param.data.device) for param in self.parameters}
 
     def step(self) -> None:
         # for every model parametr do one normalisation step
@@ -628,8 +628,8 @@ class Adam(Optimizer):
 
         self._num_steps = 0
         # buffers for the first and second moments, which are updated at each iteration
-        self._m: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype) for param in self.parameters}
-        self._v: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype) for param in self.parameters}
+        self._m: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype, device=param.data.device) for param in self.parameters}
+        self._v: dict[Variable, torch.Tensor] = {param: torch.tensor(0.0, dtype=param.data.dtype, device=param.data.device) for param in self.parameters}
 
     def step(self) -> None:
         self._num_steps += 1
