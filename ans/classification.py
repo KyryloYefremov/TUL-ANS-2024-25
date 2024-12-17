@@ -416,7 +416,7 @@ class AutogradClassifier(ans.nn.Module):
         # run backward pass on all layers
         loss.backprop()
         # update parameters
-        self.optimizer.step(**kwargs)
+        self.optimizer.step()
 
         return loss.data.item(), logits.data
     def val_step(
@@ -495,6 +495,8 @@ def train_epoch(
     Returns:
         return whatever is needed
     """
+    if isinstance(model, ans.nn.Module):
+        model.train()
 
     total_loss = 0.0
     correct_predictions = 0
@@ -502,11 +504,7 @@ def train_epoch(
 
     # Iterate over each batch in the train loader
     for inputs, targets in loader:
-
-        if isinstance(model, ans.nn.Module):
-            batch_loss, logits = model.train(inputs, targets, **train_step_kwargs)
-        else:
-            batch_loss, logits = model.train_step(inputs, targets, **train_step_kwargs)
+        batch_loss, logits = model.train_step(inputs, targets, **train_step_kwargs)
         
         total_loss += batch_loss * inputs.shape[0]   # Scale loss
         correct_predictions += (logits.argmax(dim=1) == targets).sum().item()
@@ -532,16 +530,16 @@ def validate(
         mean_loss: average loss achieved on the dataset during training
         mean_acc: average accuracy achieved on the dataset during model training
     """
+    if isinstance(model, ans.nn.Module):
+        model.eval()
+
     total_loss = 0.0
     correct_predictions = 0
     total_samples = 0
 
     # Iterate over each batch in the validation loader
     for inputs, targets in loader:
-        if isinstance(model, ans.nn.Module):
-            loss, logits = model.eval(inputs, targets)
-        else:
-            loss, logits = model.val_step(inputs, targets)
+        loss, logits = model.val_step(inputs, targets)
         
         total_loss += loss * inputs.size(0)  # Scale loss by batch size
         
@@ -556,6 +554,3 @@ def validate(
     mean_acc = correct_predictions / total_samples if total_samples > 0 else 0.0
 
     return mean_loss, mean_acc
-
-    # ENDTODO
-    ########################################
