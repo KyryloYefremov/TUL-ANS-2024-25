@@ -248,13 +248,20 @@ class Conv2dFunction(Function):
             output: shape (num_samples, num_filters, output_height, output_width)
             cache: tuple of intermediate results to use in backward
         """
-        ########################################
-        # TODO: implement
 
-        raise NotImplementedError
+        # apply convolution
+        output = torch.nn.functional.conv2d(
+            input=input,
+            weight=weight,
+            bias=torch.zeros(weight.shape[0]) if bias is None else bias,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups
+        )
 
-        # ENDTODO
-        ########################################
+        # save the required parameters
+        cache = (input, weight, bias, stride, padding, dilation, groups)
 
         return output, cache
 
@@ -268,13 +275,49 @@ class Conv2dFunction(Function):
             tuple of gradients w.r.t. input, weight and bias
         """
 
-        ########################################
-        # TODO: implement
+        input, weight, bias, stride, padding, dilation, groups = cache
 
-        raise NotImplementedError
+        kernel_size = weight.shape[2]
+        num_samples, in_channels, h, w = input.shape  # num_samples, in_channels, in_height, in_width
+        out_channels, h_out, w_out = doutput.shape[1:]  # out_channels, out_height, out_width
 
-        # ENDTODO
-        ########################################
+        output_padding = (
+            w - ((w_out - 1) * stride - 2 * padding + dilation * (kernel_size - 1) + 1),
+            h - ((h_out - 1) * stride - 2 * padding + dilation * (kernel_size - 1) + 1),
+        )
+        
+        # gradient w.r.t. inputs
+        dinput = torch.nn.functional.conv_transpose2d(
+            doutput,
+            weight,
+            torch.zeros(in_channels),
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            output_padding=output_padding
+        )
+
+        # gradient w.r.t. weights
+        dweight = torch.zeros_like(weight)
+        for c in range(in_channels):
+            for f in range(out_channels):
+                # accumulate over the batch
+                for n in range(num_samples):
+                    conv = torch.nn.functional.conv2d(
+                        input[n:n+1, c:c+1, :, :],
+                        doutput[n:n+1, f:f+1, :, :],
+                        None,
+                        stride=dilation,
+                        padding=padding,
+                        dilation=stride,
+                    )
+                    # crop the convolution result to match the kernel size
+                    conv_cropped = conv[:, :, :kernel_size, :kernel_size]
+                    dweight[f, c] += conv_cropped[0].squeeze(0)
+
+        # gradient w.r.t. bias
+        dbias = doutput.sum(dim=(0, 2, 3)) if bias is not None else None
 
         return dinput, dweight, dbias
 
@@ -511,24 +554,21 @@ class Conv2d(Module):
         self.dilation = dilation
         self.groups = groups
 
-        ########################################
-        # TODO: initialize weight and bias
-        # if bias is True, then bias should be zeros, otherwise set to None
-
-        self.weight = ...
-        self.bias = ...
-
-        # ENDTODO
-        ########################################
+        # Xavier (Glorot) uniform init
+        bound = 1. / (in_channels * kernel_size ** 2) ** 0.5 
+        self.weight = Variable(torch.FloatTensor(out_channels, in_channels // groups, kernel_size, kernel_size).uniform_(-bound, bound))
+        self.bias = Variable(torch.zeros(out_channels)) if bias is True else None
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        return Conv2dFunction.apply(
+            x,
+            self.weight,
+            self.bias,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
+        )
 
 
 class MaxPool2d(Module):
