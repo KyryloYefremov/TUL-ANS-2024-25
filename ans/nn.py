@@ -330,19 +330,35 @@ class MaxPool2dFunction(Function):
 
         Args:
             input: shape (num_samples, num_channels, height, width)
-            window_size: size of pooling window
+            kernel_size: size of pooling window
         Returns:
-            output: shape (num_samples, num_channels, height / window_size, width / window_size)
+            output: shape (num_samples, num_channels, height / kernel_size, width / kernel_size)
             cache: tuple of intermediate results to use in backward
         """
+        # cache original input.shape before all transformations
+        orig_input_shape = input.shape
 
-        ########################################
-        # TODO: implement
+        # crop `input` if `height` or `width` isn't compatible with kernel size
+        height, width = input.shape[-2:]
+        input = input[:, :, :height - (height % kernel_size), :width - (width % kernel_size)]
 
-        raise NotImplementedError
+        num_samples, num_channels, height, width = input.shape
 
-        # ENDTODO
-        ########################################
+        # split input into pooling windows
+        reshaped_input = input.reshape(
+            num_samples, num_channels,
+            height // kernel_size, kernel_size,
+            width // kernel_size, kernel_size
+        )
+        # reorder dims to combine kernel dims in one and prepare for max-pooling
+        reshaped_input = reshaped_input.transpose(-3, -2)
+        reshaped_input = reshaped_input.reshape(num_samples, num_channels, height // kernel_size, width // kernel_size, kernel_size * kernel_size)
+
+        # apply max pooling: find maximum and indeces
+        output, max_indeces = reshaped_input.max(dim=-1)
+
+        # cache necessary parameters to use in backward pass
+        cache = (max_indeces, orig_input_shape, input.shape, reshaped_input.shape, kernel_size) 
 
         return output, cache
 
@@ -355,15 +371,30 @@ class MaxPool2dFunction(Function):
         Returns:
             tuple of gradients w.r.t. input (single-element tuple)
         """
+        # extract cache
+        max_indeces, orig_input_shape, cropped_input_shape, reshaped_size, kernel_size = cache
 
-        ########################################
-        # TODO: implement
+        dinput = torch.zeros(reshaped_size, dtype=doutput.dtype, device=doutput.device)
 
-        raise NotImplementedError
+        # transfer values from `doutput` to `dinput` at positions `max_indeces`, other leave as zeros
+        dinput.scatter_(-1, max_indeces.unsqueeze(-1), doutput.unsqueeze(-1))
+        
+        # expand the last dim back to 2D kernel and revert the right order
+        NS, NC, H, W = max_indeces.shape
+        dinput = dinput.reshape(NS, NC, H, W, kernel_size, kernel_size)
+        dinput = dinput.transpose(-3, -2)
+        # revert to cropped shape
+        dinput = dinput.reshape(cropped_input_shape)
 
-        # ENDTODO
-        ########################################
-
+        # check whether `input` was cropped or not
+        cropped_H, cropped_W = cropped_input_shape[-2:]
+        origin_H, origin_W = orig_input_shape[-2:]
+        if cropped_H != origin_H or cropped_W != origin_W:
+            # if yes: epand `dinput` with zeros to have the original size
+            dinput_full = dinput.new_zeros(orig_input_shape)
+            dinput_full[:, :, :cropped_H, :cropped_W] = dinput
+            return (dinput_full,)
+        
         return (dinput,)
 
 
@@ -579,13 +610,10 @@ class MaxPool2d(Module):
         self.kernel_size = kernel_size
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        return MaxPool2dFunction.apply(
+            x,
+            kernel_size=self.kernel_size
+        )
 
 
 class Flatten(Module):
