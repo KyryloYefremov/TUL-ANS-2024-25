@@ -619,13 +619,8 @@ class MaxPool2d(Module):
 class Flatten(Module):
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        shape = (x.data.shape[0], -1)
+        return x.reshape(*shape)
 
 
 class Sequential(Module):

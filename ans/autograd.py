@@ -439,6 +439,28 @@ class Variable:
             parents=(self,),
             grad_fn=grad_fn
         )
+    
+    def reshape(self, *shape: int) -> Self:
+        """
+        Performs a reshape of the data contained in `self.data`.
+        Args:
+            shape: The target shape that the data should have.
+
+        Returns:
+            The new `Variable` object containing the reshaped data.
+        """
+        reshaped_data = self.data.reshape(*shape)
+
+        def grad_fn(dout: torch.Tensor) -> tuple[torch.Tensor]:
+            # Reshape dout back to input size
+            return (dout.reshape(self.data.shape),)
+        
+        # Return result as new instance of Variable.
+        return Variable(
+            data=reshaped_data,
+            parents=(self,),
+            grad_fn=grad_fn,
+        )
 
     @staticmethod
     def _topological_sort(var, visited, topo_order):
