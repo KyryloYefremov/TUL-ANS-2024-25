@@ -290,7 +290,7 @@ class Conv2dFunction(Function):
         dinput = torch.nn.functional.conv_transpose2d(
             doutput,
             weight,
-            torch.zeros(in_channels),
+            torch.zeros(in_channels, device=doutput.device, dtype=doutput.dtype),
             stride=stride,
             padding=padding,
             dilation=dilation,
