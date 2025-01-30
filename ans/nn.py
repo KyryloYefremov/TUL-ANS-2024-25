@@ -157,13 +157,25 @@ class BatchNorm2dFunction(Function):
             cache: tuple of intermediate results to use in backward
         """
 
-        ########################################
-        # TODO: implement
+        num_samples, in_channels, H, W = input.shape
 
-        raise NotImplementedError
+        # reshape input to (N * H * W, C) for batch norm
+        input_reshaped = input.permute(0, 2, 3, 1).reshape(-1, in_channels)
 
-        # ENDTODO
-        ########################################
+        # apply BatchNorm1d
+        output_reshaped, cache = BatchNorm1dFunction.forward(
+            input=input_reshaped,
+            weight=weight,
+            bias=bias,
+            running_mean=running_mean,
+            running_var=running_var,
+            momentum=momentum,
+            eps=eps,
+            training=training
+        )
+
+        # reshape back to (N, C, H, W)
+        output = output_reshaped.reshape(num_samples, H, W, in_channels).permute(0, 3, 1, 2)
 
         return output, cache
 
@@ -177,15 +189,19 @@ class BatchNorm2dFunction(Function):
             tuple of gradients w.r.t. input (single-element tuple)
         """
 
-        ########################################
-        # TODO: implement
+        num_samples, out_channels, H, W = doutput.shape
 
-        raise NotImplementedError
+        # reshape doutput to (N * H * W, C) for batch norm
+        doutput_reshaped = doutput.permute(0, 2, 3, 1).reshape(-1, out_channels)
 
-        # ENDTODO
-        ########################################
+        # calc grads using 1D batch norm
+        dinput_reshaped, dweight, dbias = BatchNorm1dFunction.backward(doutput_reshaped, cache)
+
+        # reshape back to (N, C, H, W)
+        dinput = dinput_reshaped.reshape(num_samples, H, W, out_channels).permute(0, 3, 1, 2)
 
         return dinput, dweight, dbias
+
 
 
 class DropoutFunction(Function):
@@ -557,13 +573,16 @@ class BatchNorm1d(Module):
 class BatchNorm2d(BatchNorm1d):
 
     def forward(self, x: Variable) -> Variable:
-        ########################################
-        # TODO: implement
-
-        raise NotImplementedError
-
-        # ENDTODO
-        ########################################
+        return BatchNorm2dFunction.apply(
+            x,
+            self.weight,
+            self.bias,
+            running_mean=self.running_mean,
+            running_var=self.running_var,
+            momentum=self.momentum,
+            eps=self.eps,
+            training=self.training,
+        )
 
 
 class Conv2d(Module):
