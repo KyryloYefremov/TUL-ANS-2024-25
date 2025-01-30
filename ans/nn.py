@@ -298,23 +298,27 @@ class Conv2dFunction(Function):
             output_padding=output_padding
         )
 
+        # reshape input and output gradient to prepare for convolution.
+        # '-1' in 'reshape' is a placeholder that lets PyTorch automatically infer the 
+        # correct size for the dimension based on total number of elements.
+        input_reshaped = input.reshape(-1, in_channels, h, w)
+        doutput_reshaped = doutput.reshape(-1, out_channels, h_out, w_out)
+
         # gradient w.r.t. weights
-        dweight = torch.zeros_like(weight)
-        for c in range(in_channels):
-            for f in range(out_channels):
-                # accumulate over the batch
-                for n in range(num_samples):
-                    conv = torch.nn.functional.conv2d(
-                        input[n:n+1, c:c+1, :, :],
-                        doutput[n:n+1, f:f+1, :, :],
-                        None,
-                        stride=dilation,
-                        padding=padding,
-                        dilation=stride,
-                    )
-                    # crop the convolution result to match the kernel size
-                    conv_cropped = conv[:, :, :kernel_size, :kernel_size]
-                    dweight[f, c] += conv_cropped[0].squeeze(0)
+        dweight_conv = torch.conv2d(
+            input_reshaped.transpose(0, 1),  # swap batch and channel dim
+            doutput_reshaped.transpose(0, 1),
+            stride=dilation,
+            padding=padding,
+            dilation=stride
+        )
+
+        # find center region of the gradient to match kernel
+        h_start = (dweight_conv.shape[2] - kernel_size) // 2
+        w_start = (dweight_conv.shape[3] - kernel_size) // 2
+
+        # extract relevant part and return dimension order to right one
+        dweight = dweight_conv[:, :, h_start:h_start+kernel_size, w_start:w_start+kernel_size].permute(1, 0, 2, 3)
 
         # gradient w.r.t. bias
         dbias = doutput.sum(dim=(0, 2, 3)) if bias is not None else None
